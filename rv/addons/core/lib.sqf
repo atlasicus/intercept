@@ -3,6 +3,8 @@
 
 intercept_invoker_ok = false;
 
+INTERCEPT_DUMMY = [1,2,3];
+
 intercept_fnc_test = {
     private ["_res"];
     if(isNil "_thisScript") then { // make sure this is NOT being called in the scheduler
@@ -20,7 +22,25 @@ intercept_fnc_exportOpList = {
     "intercept" callExtension ("export_ptr_list:" + _version);
 };
 
+intercept_fnc_setVariableNamespace = {
+    scopeName "main";
+    params ["_namespace", "_args"];
+    _namespace setVariable _args;
+    INTERCEPT_DUMMY;
+};
 
+intercept_fnc_callWrapper = {
+    scopeName "main";
+    params ["_args", "_code"];
+    _res = nil;
+    if(!isNil "_args") then {
+        _res = _args call _code;
+    } else {
+        _res = call _code;
+    };
+    missionNamespace setVariable ["INTERCEPT_CALL_RETURN", _res];
+    INTERCEPT_DUMMY;
+};
 
 intercept_fnc__event = {
     params ["_type", "_eventArgs"];
@@ -32,6 +52,8 @@ intercept_fnc__onFrame = {
     // _end = diag_tickTime;
     // diag_log text format["t: %1", (_end-_start)*1000];
 };
+
+INTERCEPT_OUT_TEST = 999;
 
 INVOKER_DELETE_ARRAY = [];
 INVOKER_DELETE_ARRAY resize 1000;

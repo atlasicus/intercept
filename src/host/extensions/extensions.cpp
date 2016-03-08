@@ -15,12 +15,9 @@ namespace intercept {
         functions.get_nular_function = client_function_defs::get_nular_function;
         functions.get_unary_function = client_function_defs::get_unary_function;
         functions.get_unary_function_typed = client_function_defs::get_unary_function_typed;
-        functions.invoke_raw_binary = client_function_defs::invoke_raw_binary;
-        functions.invoke_raw_binary_nolock = client_function_defs::invoke_raw_binary_nolock;
-        functions.invoke_raw_nular = client_function_defs::invoke_raw_nular;
-        functions.invoke_raw_nular_nolock = client_function_defs::invoke_raw_nular_nolock;
-        functions.invoke_raw_unary = client_function_defs::invoke_raw_unary;
-        functions.invoke_raw_unary_nolock = client_function_defs::invoke_raw_unary_nolock;
+        functions.invoke_raw_binary = client_function_defs::invoke_raw_binary_nolock;
+        functions.invoke_raw_nular = client_function_defs::invoke_raw_nular_nolock;
+        functions.invoke_raw_unary = client_function_defs::invoke_raw_unary_nolock;
         functions.invoker_lock = client_function_defs::invoker_lock;
         functions.invoker_unlock = client_function_defs::invoker_unlock;
         for (auto file : _searcher.active_pbo_list()) {
@@ -145,6 +142,7 @@ namespace intercept {
 
         new_module.functions.api_version = (module::api_version_func)GetProcAddress(dllHandle, "api_version");
         new_module.functions.assign_functions = (module::assign_functions_func)GetProcAddress(dllHandle, "assign_functions");
+        new_module.functions.handle_unload = (module::handle_unload_func)GetProcAddress(dllHandle, "handle_unload");
         new_module.functions.mission_end = (module::mission_end_func)GetProcAddress(dllHandle, "mission_end");
         new_module.functions.on_frame = (module::on_frame_func)GetProcAddress(dllHandle, "on_frame");
         //new_module.functions.on_signal = (module::on_signal_func)GetProcAddress(dllHandle, "on_signal");
@@ -223,13 +221,17 @@ namespace intercept {
 
     bool extensions::do_unload(const std::string &path_) {
         LOG(INFO) << "Unload requested [" << path_ << "]";
-
-        if (_modules.find(path_) == _modules.end()) {
+        auto module = _modules.find(path_);
+        if (module == _modules.end()) {
             LOG(INFO) << "Unload failed, module not loaded [" << path_ << "]";
             return true;
         }
 
-        if (!FreeLibrary(_modules[path_].handle)) {
+        if (module->second.functions.handle_unload) {
+            module->second.functions.handle_unload();
+        }
+
+        if (!FreeLibrary(module->second.handle)) {
             LOG(INFO) << "FreeLibrary() failed during unload, e=" << GetLastError();
             return false;
         }

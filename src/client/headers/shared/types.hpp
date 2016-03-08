@@ -94,11 +94,103 @@ namespace intercept {
             uintptr_t procedure_ptr_addr;
             nular_operator *op;
         };
+        /*
+        typedef union ref_count {
+        public:
+            ref_count() { current_count = 0; __initial_count = 0; }
+            int32_t rv_ref_count;
+            struct {
+            public:
+                uint16_t current_count;
+                uint16_t __initial_count;
+            };
+
+            void set_initial(uint16_t val_, bool is_intercept_) {
+                assert(val_ <= SHRT_MAX);
+                __initial_count = val_;
+                if (is_intercept_) {
+                    __initial_count |= 1 << 15;
+                }
+            }
+
+            uint16_t get_initial() {
+                if ((__initial_count >> 15) & 1)
+                    return __initial_count & ~(1 << 15);
+                return __initial_count;
+            }
+
+            bool is_intercept() {
+                return (__initial_count >> 15) & 1;
+            }
+        } ref_count_type;
+        */
+
+        class ref_count {
+        public:
+            ref_count() { _count = 0; };
+
+            ref_count(int16_t initial_, int16_t actual_, bool is_intercept_) {
+                _count = (((int32_t)initial_) << 16) | ((int32_t)actual_);
+                if (is_intercept_)
+                    _count |= 1 << 31;
+            }
+
+            void operator = (int16_t val_) {
+                _count = (((int32_t)_initial()) << 16) | ((int32_t)val_);
+            }
+
+            uint16_t operator + (const int32_t val_) {
+                return _actual() + val_;
+            }
+
+            uint16_t operator - (const int32_t val_) {
+                return _actual() - val_;
+            }
+
+            void operator ++ (const int32_t val_) {
+                _count = (((int32_t)_initial()) << 16) | ((int32_t)_actual() + 1);
+            }
+
+            void operator -- (const int32_t val_) {
+                _count = (((int32_t)_initial()) << 16) | ((int32_t)_actual() - 1);
+            }
+
+            operator int16_t() {
+                return _actual();
+            }
+
+            void set_initial(int16_t val_, bool is_intercept_) {
+                _count = (((int32_t)val_) << 16) | (int32_t)_actual();
+                if (is_intercept_)
+                    _count |= 1 << 31;
+            }
+
+            int16_t get_initial() {
+                return ((int16_t)(_count >> 16)) & ~(1 << 15);
+            }
+
+            bool is_intercept() {
+                return (_count >> 31) & 1;
+            }
+
+            void clear_initial() {
+                _count = (((int32_t)0) << 16) | (int32_t)_actual();
+            }
+        protected:
+            inline int16_t _actual() {
+#undef max // fucking hell i hate these macros, need to turn them off...
+                return ((int32_t)((std::numeric_limits<int16_t>::max()) & _count));
+            }
+            inline int16_t _initial() {
+                return (int16_t)(_count >> 16);
+            }
+            int32_t _count;
+        };
 
         class game_data {
         public:
             uintptr_t type;
-            uint32_t ref_count_internal;
+            ref_count ref_count_internal;
             uintptr_t data_type;
         };
 
@@ -217,9 +309,9 @@ namespace intercept {
         public:
             static uintptr_t type_def;
             static uintptr_t data_type_def;
-            game_data_array();;
-            game_data_array(size_t size_);;
-            game_data_array(const std::vector<game_value> &init_);;
+            game_data_array();
+            game_data_array(size_t size_);
+            game_data_array(const std::vector<game_value> &init_);
             game_data_array(const game_data_array &copy_);
             game_data_array(game_data_array &&move_);
             game_data_array & game_data_array::operator = (const game_data_array &copy_);
@@ -266,6 +358,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *group;
         };
@@ -278,6 +371,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *config;
         };
@@ -290,6 +384,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *control;
         };
@@ -302,6 +397,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *display;
         };
@@ -314,6 +410,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *location;
         };
@@ -326,6 +423,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *script;
         };
@@ -338,6 +436,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *side;
         };
@@ -350,6 +449,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *rv_text;
         };
@@ -362,6 +462,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *team;
         };
@@ -374,6 +475,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *rv_namespace;
         };
@@ -386,6 +488,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             rv_string *code_string;
             uintptr_t instruction_array;
@@ -402,6 +505,7 @@ namespace intercept {
                 type = type_def;
                 data_type = data_type_def;
                 ref_count_internal = 1;
+                ref_count_internal.set_initial(1, true);
             };
             void *object;
         };
