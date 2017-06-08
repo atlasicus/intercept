@@ -1,6 +1,10 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.8)
 
-set(INTERCEPT_EXTENSION_NAME "intercept")
+if(USE_64BIT_BUILD)
+    set(INTERCEPT_EXTENSION_NAME "intercept_x64")
+else()
+    set(INTERCEPT_EXTENSION_NAME "intercept")
+endif()
 
 file(GLOB_RECURSE INTERCEPT_SOURCES *.h *.hpp *.c *.cpp)
 intercept_set_linker_options()
@@ -13,6 +17,7 @@ file(GLOB INTERCEPT_SOURCES *.h *.hpp *.c *.cpp)
 SOURCE_GROUP("main" FILES ${INTERCEPT_SOURCES})
 
 add_library( ${INTERCEPT_EXTENSION_NAME} SHARED ${INTERCEPT_SOURCES})
+add_library( ${INTERCEPT_EXTENSION_NAME}_static ${INTERCEPT_SOURCES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${INTERCEPT_EXTENSION_NAME} common_static loader_static controller_static invoker_static extensions_static ${LINK_LIBS})

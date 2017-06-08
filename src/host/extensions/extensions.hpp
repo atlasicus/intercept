@@ -1,4 +1,4 @@
-/*!
+﻿/*!
 @file
 @author Nou (korewananda@gmail.com)
 
@@ -13,14 +13,21 @@ https://github.com/NouberNou/intercept
 #include "singleton.hpp"
 #include "logging.hpp"
 #include "arguments.hpp"
-#include "shared\functions.hpp"
-#include "shared\client_types.hpp"
+#include "shared/functions.hpp"
+#include "shared/client_types.hpp"
 
 #include "search.hpp"
 
+#if __linux__
+#define DLL_HANDLE void*
+#else
+#define DLL_HANDLE HMODULE
+#endif
+
+
 namespace intercept {
     /*!
-    @namespace
+    @namespace module
     @brief Contains the module entry definitions and classes.
     */
     namespace module {
@@ -30,28 +37,30 @@ namespace intercept {
         /*!@{
         @brief Function definitions.
         */
-        typedef int(__cdecl *api_version_func)();
-        typedef void(__cdecl *assign_functions_func)(const struct intercept::client_functions funcs);
-        typedef void(__cdecl *handle_unload_func)();
-        typedef void(__cdecl *pre_init_func)();
-        typedef void(__cdecl *post_init_func)();
-        typedef void(__cdecl *mission_end_func)();
-        typedef void(__cdecl *mission_stopped_func)();
-        typedef void(__cdecl *on_frame_func)();
-        typedef void(__cdecl *on_signal_func)(game_value &this_);
+        typedef int(CDECL *api_version_func)();
+        typedef void(CDECL *assign_functions_func)(const struct client_functions funcs);
+        typedef void(CDECL *handle_unload_func)();
+        typedef void(CDECL *pre_start_func)();
+        typedef void(CDECL *pre_init_func)();
+        typedef void(CDECL *post_init_func)();
+        typedef void(CDECL *mission_end_func)();
+        typedef void(CDECL *mission_stopped_func)();
+        typedef void(CDECL *on_frame_func)();
+        typedef void(CDECL *on_signal_func)(game_value &this_);
 
         //!@}
 
         /*!
         @brief Holds the addresses of exported functions from client plugins.
         */
-        struct functions {
+        struct functions_list {
             /*!@{
             @brief Addresses of exported functions.
             */
             api_version_func api_version;
             assign_functions_func assign_functions;
             handle_unload_func handle_unload;
+            pre_start_func pre_start;
             pre_init_func pre_init;
             post_init_func post_init;
             mission_end_func mission_end;
@@ -63,33 +72,33 @@ namespace intercept {
 
 
 
-#define EH(x) typedef void(__cdecl *##x##_func)
+#define EH(x) typedef void(CDECL *x##_func)
 
-        EH(anim_changed)(object &unit_, rv_string &anim_name_);
-        EH(anim_done)(object &unit_, rv_string &anim_name_);
-        EH(anim_state_changed)(object &unit_, rv_string &anim_name_);
+        EH(anim_changed)(object &unit_, r_string anim_name_);
+        EH(anim_done)(object &unit_, r_string anim_name_);
+        EH(anim_state_changed)(object &unit_, r_string anim_name_);
         EH(container_closed)(object &container_, object &player_);
         EH(controls_shifted)(object &vehicle_, object &new_controller_, object &old_controller_);
-        EH(dammaged)(object &unit_, rv_string &selection_name_, float damage_);
+        EH(dammaged)(object &unit_, r_string selection_name_, float damage_);
         EH(engine)(object &vehicle_, bool engine_state_);
-        EH(epe_contact)(object &object1_, object &object2_, rv_string &selection1_, rv_string &selection2_, float force_);
-        EH(epe_contact_end)(object &object1_, object &object2_, rv_string &selection1_, rv_string &selection2_, float force_);
-        EH(epe_contact_start)(object &object1_, object &object2_, rv_string &selection1_, rv_string &selection2_, float force_);
+        EH(epe_contact)(object &object1_, object &object2_, r_string selection1_, r_string selection2_, float force_);
+        EH(epe_contact_end)(object &object1_, object &object2_, r_string selection1_, r_string selection2_, float force_);
+        EH(epe_contact_start)(object &object1_, object &object2_, r_string selection1_, r_string selection2_, float force_);
         EH(explosion)(object &vehicle_, float damage_);
-        EH(fired)(object &unit_, rv_string &weapon_, rv_string &muzzle_, rv_string &mode_, rv_string &ammo_, rv_string &magazine, object &projectile_);
-        EH(fired_near)(object &unit_, object &firer_, float distance_, rv_string &weapon_, rv_string &muzzle_, rv_string &mode_, rv_string &ammo_);
+        EH(fired)(object &unit_, r_string weapon_, r_string muzzle_, r_string mode_, r_string ammo_, r_string magazine, object &projectile_);
+        EH(fired_near)(object &unit_, object &firer_, float distance_, r_string weapon_, r_string muzzle_, r_string mode_, r_string ammo_);
         EH(fuel)(object &vehicle_, bool fuel_state_);
         EH(gear)(object &vehicle_, bool gear_state_);
-        EH(get_in)(object &vehicle_, rv_string &position_, object &unit_, rv_list<int> &turret_path);
-        EH(get_out)(object &vehicle_, rv_string &position_, object &unit_, rv_list<int> &turret_path);
-        EH(handle_damage)(object &unit_, rv_string &selection_name_, float damage_, object &source_, rv_string &projectile_, int hit_part_index_);
+        EH(get_in)(object &vehicle_, r_string position_, object &unit_, auto_array<int> &turret_path);
+        EH(get_out)(object &vehicle_, r_string position_, object &unit_, auto_array<int> &turret_path);
+        EH(handle_damage)(object &unit_, r_string selection_name_, float damage_, object &source_, r_string projectile_, int hit_part_index_);
         EH(handle_heal)(object &unit_, object &healder_, bool healer_can_heal_);
         EH(handle_rating)(object &unit_, float rating_);
         EH(handle_score)(object &unit_, object &object_, float score_);
         EH(hit)(object &unit_, object &caused_by_, float damage_);
-        EH(hit_part)(rv_list<hit_part_data> &data_);
+        EH(hit_part)(auto_array<hit_part_data> &data_);
         EH(init)(object &unit_);
-        EH(incoming_missile)(object &unit_, rv_string &ammo_, object &firer_);
+        EH(incoming_missile)(object &unit_, r_string ammo_, object &firer_);
         EH(inventory_closed)(object &object_, object &container_);
         EH(inventory_opened)(object &object_, object &container_);
         EH(killed)(object &unit_, object &killer_);
@@ -97,13 +106,13 @@ namespace intercept {
         EH(landed_stopped)(object &plane_, int airport_id_);
         EH(local)(object &object_, bool local_);
         EH(post_reset)();
-        EH(put)(object &unit_, object &container_, rv_string &item_);
+        EH(put)(object &unit_, object &container_, r_string item_);
         EH(respawn)(object &unit_, object &corpse_);
         EH(rope_attach)(object &object1, object &rope_, object &object2_);
         EH(rope_break)(object &object1, object &rope_, object &object2_);
         EH(seat_switched)(object &vehicle_, object &unit1_, object &unit2_);
         EH(sound_played)(object &unit_, int sound_code_);
-        EH(take)(object &unit_, object &container_, rv_string &item_);
+        EH(take)(object &unit_, object &container_, r_string item_);
         EH(task_set_as_current)(object &unit_, task &task_);
         EH(weapon_assembled)(object &unit_, object &weapon_);
         EH(weapon_disassembled)(object &unit_, object &primary_bag_, object &secondary_bag_);
@@ -112,7 +121,7 @@ namespace intercept {
 
 #define EH_STRUCT_DEF(x) x##_func x
 
-        struct eventhandlers {
+        struct eventhandlers_list {
             EH_STRUCT_DEF(anim_changed);
             EH_STRUCT_DEF(anim_done);
             EH_STRUCT_DEF(anim_state_changed);
@@ -164,8 +173,8 @@ namespace intercept {
         */
         class entry {
         public:
-            entry() : handle(nullptr), name("") {}
-            entry(const std::string & name_, HMODULE handle_) : handle(handle_), name(name_) {}
+            entry() : name(""), handle(nullptr) {}
+            entry(const std::string & name_, DLL_HANDLE handle_) : name(name_), handle(handle_) {}
             /*!
             @brief The name of the module
             */
@@ -180,13 +189,13 @@ namespace intercept {
             @brief A intercept::module::functions struct containing pointers to
             plugin exported functions.
             */
-            functions functions;
+            functions_list functions;
 
             /*!
             @brief A intercept::module::eventhandlers struct containing pointers to
             plugin exported event handler functions.
             */
-            eventhandlers eventhandlers;
+            eventhandlers_list eventhandlers;
 
             /*!
             @brief A list of exported functions called by the signal ability.
@@ -196,7 +205,7 @@ namespace intercept {
             /*!
             @brief A handle to the plugin dynamic library.
             */
-            HMODULE     handle;
+            DLL_HANDLE handle;
         };
     }
 
@@ -264,9 +273,7 @@ namespace intercept {
         */
         std::unordered_map<std::string, module::entry> _modules;
 
-        intercept::pbo::search _searcher;
-
-        std::list<std::string> _mod_folders;
+        search::plugin_searcher _searcher;
     };
     
-};
+}
